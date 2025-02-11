@@ -122,13 +122,11 @@ func cleanEmail(email string) string {
 	return cEmail
 }
 
-func getUser(email string) string {
-	cEmail := cleanEmail(email)
-
+func searchLDAP(email string, emailField string) string {
 	lc := getLDAPClient()
 
 	searchBase := "ou=users,dc=redhat,dc=com"
-	searchFilter := fmt.Sprintf("(mail=%s)", cEmail)
+	searchFilter := fmt.Sprintf("(%s=%s)", emailField, email)
 
 	searchRequest := ldap.NewSearchRequest(
 		searchBase,
@@ -143,16 +141,34 @@ func getUser(email string) string {
 	sr, err := lc.conn.Search(searchRequest)
 
 	if err != nil {
-		fmt.Printf("Error found searching for email %s: %v\n", cEmail, err)
-		return ""
+		log.Fatalf("Error found searching for email %s: %v\n", email, err)
 	}
 
 	if len(sr.Entries) == 0 {
-		fmt.Printf("No user found for email %s\n", cEmail)
+		
 		return ""
 	}
 
 	return sr.Entries[0].GetAttributeValue("uid")
+}
+
+func getUser(email string) string {
+	cEmail := cleanEmail(email)
+
+	// searching by mail
+	userName := searchLDAP(cEmail, "mail")
+
+	if userName == "" {
+		// trying search by alias
+		userName = searchLDAP(cEmail, "rhatPreferredAlias")
+
+		if userName == "" {
+			fmt.Printf("No user found for email %s\n", cEmail)
+		}
+	}
+
+	return userName
+	
 }
 
 func buildIDMap(userAccounts *unstructured.UnstructuredList, transform Transform) map[string]string {
