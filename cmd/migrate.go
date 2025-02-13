@@ -322,7 +322,19 @@ func writeMigratedRoleBindings(rbList []rbacv1.RoleBinding) {
 	scheme := runtime.NewScheme()
 	serializer := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme, scheme)
 
+	processedRBs := make(map[string]int)
+	written := 0
+
 	for _, rb := range rbList {
+		//Skip if RB already processed to avoid duplicates
+		processedRB := fmt.Sprintf("(%s-%s)", rb.Namespace, rb.Name)
+
+		if _, exists := processedRBs[processedRB]; exists {
+			fmt.Printf("RoleBinding %s for Namespace %s was already processed\n", rb.Name, rb.Namespace)
+			continue
+		}
+
+		processedRBs[processedRB] = 1
 
 		//writing separator ---
 		_, err := file.WriteString("---\n")
@@ -346,9 +358,11 @@ func writeMigratedRoleBindings(rbList []rbacv1.RoleBinding) {
 			log.Printf("Failed to write RoleBinding %s YAML to file: %v\n", rb.Name, err)
 			continue
 		}
+
+		written++
 	}
 
-	fmt.Printf("Wrote %d migrated RoleBindings to %s\n", len(rbList), outputFile)
+	fmt.Printf("Wrote %d migrated RoleBindings to %s\n", written, outputFile)
 }
 
 func migrate(idMap map[string]string, ctx context.Context) {
