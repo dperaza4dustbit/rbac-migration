@@ -240,9 +240,15 @@ func getTenantRoleBindings(clientset *kubernetes.Clientset, ctx context.Context)
 
 	for _, rb := range rbs.Items {
 		rbName := rb.Name
+		rbNamespace := rb.Namespace
 		if rbName == "appstudio-pipelines-runner-rolebinding" {
 			continue
 		}
+
+		if rbNamespace == "toolchain-host-operator" {
+			continue
+		}
+
 		rbList = append(rbList, rb)
 	}
 
